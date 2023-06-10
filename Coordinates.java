@@ -1,18 +1,19 @@
 public class Coordinates {
 
-    private int longitude;
-    private int latitude;
+    private double longitude;
+    private double latitude;
 
-    public int getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public int getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public Coordinates(int longitude, int latitude){
+    public Coordinates(double longitude, double latitude){
         this.longitude=longitude;
         this.latitude=latitude;
     }
 }
+
