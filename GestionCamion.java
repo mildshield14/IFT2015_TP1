@@ -1,46 +1,51 @@
+// Date: 12 june 2023
+// Authors; SOOBEN Vennila (20235256) and ABSALON Marion (20211423)
+
+
 import java.util.ArrayList;
 import java.util.Queue;
 import java.util.LinkedList;
 import java.lang.Math.*;
+
 public class GestionCamion {
 
-        private static ArrayList<Integer> arrayBox;
-        private static Queue<Double> arrayDist;
-        private static ArrayList<Coordinates> pairList = new ArrayList<>();
-        private int contentTruck;
+    private static Queue<Integer> queueBox;
+    private static Queue<Double> queueDist;
+    private static Queue<Coordinates> queueCoord;
+    private int contentTruck;
 
 
-    public void setPairList(ArrayList<Coordinates> pairList) {
-        this.pairList = pairList;
+    public void setqueueCoord(Queue<Coordinates> queueCoord) {
+        this.queueCoord = queueCoord;
     }
 
     public void setContentTruck(int contentTruck) {
         this.contentTruck = contentTruck;
     }
 
-    public  void setArrayBox(ArrayList<Integer> arrayBox) {
-        GestionCamion.arrayBox = arrayBox;
+    public  void setqueueBox(Queue<Integer> queueBox) {
+        GestionCamion.queueBox = queueBox;
     }
 
-    public static ArrayList<Integer> getArrayBox() {
-        return arrayBox;
+    public static Queue<Integer> getqueueBox() {
+        return queueBox;
     }
 
 
-    public ArrayList<Coordinates> getPairList() {
-        return pairList;
+    public Queue<Coordinates> getQueueCoord() {
+        return queueCoord;
     }
 
-    public static Queue<Double> getArrayDist() {
-        return arrayDist;
+    public static Queue<Double> getQueueDist() {
+        return queueDist;
     }
 
     public int getContentTruck() {
         return contentTruck;
     }
 
-    public static void setArrayDist(Queue<Double> arrayDist) {
-        GestionCamion.arrayDist = arrayDist;
+    public static void setqueueDist(Queue<Double> queueDist) {
+        GestionCamion.queueDist = queueDist;
     }
 
     public static void main(String[] args) {
@@ -48,113 +53,140 @@ public class GestionCamion {
         int maxBoxIndex =0;
         int maxBox=0;
 
-        GestionCamion c1 = new GestionCamion();
-        c1.setContentTruck(15);
+        GestionCamion truck = new GestionCamion();
 
-        ArrayList<Integer> box = new ArrayList();
-        box.add(4);
-        box.add(8);
-        box.add(2);
-        box.add(5);
-        c1.setArrayBox(box);
+        ManipulationFichier fileManip = new ManipulationFichier();
 
-        ArrayList<Coordinates> positions = new ArrayList();
-        Coordinates ob1 = new Coordinates(-73.714,45.4977);
-        Coordinates ob2 = new Coordinates(-73.8205,45.4383);
-        Coordinates ob3 = new Coordinates(-73.561996,45.515399);
-        Coordinates ob4 = new Coordinates(-73.5682,45.5092);
-        positions.add(ob1);
-        positions.add(ob2);
-        positions.add(ob3);
-        positions.add(ob4);
-        c1.setPairList(positions);
+        fileManip.readFile(args[0], args[1],truck);
+        //  fileManip.readFile("test.txt",truck);
+
+        maxBoxIndex = maxBox(fileManip.getArrayBox());
+        maxBox =  fileManip.getArrayBox().get(maxBoxIndex);
 
 
-        maxBoxIndex = maxmin("max",c1.getArrayBox());
-        maxBox = c1.getArrayBox().get(maxBoxIndex);
+        Coordinates positions = fileManip.getArrayCoord().get(maxBoxIndex);
 
+        fileManip.getArrayCoord().remove(maxBoxIndex);
 
-        Coordinates firstPos = c1.getPairList().get(maxBoxIndex);
+        //First Position, where the truck will stay
 
-        c1.getPairList().remove(maxBoxIndex);
-        System.out.println("Truck position: " +"(" + firstPos.getLatitude() + "," + firstPos.getLongitude() + ")");
-        if (c1.getArrayBox().get(maxBoxIndex) < c1.getContentTruck()) {
+        String outputstr = "Truck position: " + "(" + positions.getLatitude() + "," + positions.getLongitude() + ")";
 
-            System.out.println("Distance:0" + "\t" + "Number of boxes:0" + "\t" + "Position:" + "(" + firstPos.getLatitude() + "," + firstPos.getLongitude() + ")");
+        fileManip.writeFile(args[1], outputstr);
 
-            c1.setContentTruck(c1.getContentTruck() - (c1.getArrayBox().get(maxBoxIndex)));
+        System.out.println(outputstr);
 
-            c1.getArrayBox().remove(maxBoxIndex);
+        // check if truck capacity > max box available to be able to start moving else check is <= then done
+        if (fileManip.getArrayBox().get(maxBoxIndex) < truck.getContentTruck()) {
+
+            outputstr="Distance:0\t\t\t"  + "Number of boxes:0\t" + "\t" + "Position:" + "(" + positions.getLatitude() + "," + positions.getLongitude() + ")";
+
+            //fetching content from file passes as parameter
+            fileManip.writeFile(args[1],outputstr);
+            System.out.println(outputstr);
+
+            truck.setContentTruck(truck.getContentTruck() - (fileManip.getArrayBox().get(maxBoxIndex)));
+
+            // we already took all boxes from 1st position so we remove it
+            fileManip.getArrayBox().remove(maxBoxIndex);
 
             // output (pos initial)
             int i = 0;
 
-            ArrayList<Double> tableau = new ArrayList();
+            // arrays for calculating distance
+            ArrayList<Double> arrayDistTemp = new ArrayList();
+            // we need a copy to be able to remove from one and do several operation (see below)
+            ArrayList<Double> arrayDistTempCopy = new ArrayList<>();
+
+
             double dist = 0;
 
-            for (int j = 0; j < c1.getPairList().size(); j++) {
-                dist = calculeDistance(firstPos, c1.getPairList().get(j));
-                tableau.add(dist);
+            // add elements of the calculated distances to array
+            for (int j = 0; j < fileManip.getArrayCoord().size(); j++) {
+                dist = calculeDistance(positions, fileManip.getArrayCoord().get(j));
+                arrayDistTemp.add(dist);
+                arrayDistTempCopy.add(dist);
             }
 
-            int lengthArrBox = c1.getArrayBox().size();
+            int lengthArrBox = fileManip.getArrayBox().size();
+
             Queue<Double> queue = new LinkedList<Double>();
-            for (int k = 0; k < lengthArrBox; k++) {
-                int minDistIndex = maxmind("min", tableau);
+            Queue<Integer> queueBox = new LinkedList<Integer>();
+            Queue<Coordinates> queueCoord = new LinkedList<Coordinates>();
+
+            //searching for the max so that when we see the minimum current distance we
+            //can assign it to max so that it does not become min again
+            int maxInd = maxmind("max", arrayDistTemp);
+            double compa=arrayDistTemp.get(maxInd)+1;
 
 
-                queue.add(tableau.get(minDistIndex));
-                tableau.remove(minDistIndex);
+            // this will save a certain order on indices that will be used to populate our queues later on
+            ArrayList<Integer> indexArrayList = new ArrayList<>();
 
-
-
-
-               // int temp1 = c1.getArrayBox().get(k);
-              //  Coordinates temp2 = c1.getPairList().get(k);
-
-                ArrayList<Integer> t1;
-                ArrayList<Coordinates> t2 = null;
-
-                t1=c1.getArrayBox();
-                t2=c1.getPairList();
-
-                int temp1 = t1.get(k);
-                Coordinates temp2 = t2.get(k);
-
-                t1.set(k,getArrayBox().get((minDistIndex+k)));
-                t2.set(k, c1.getPairList().get(minDistIndex+k));
-
-               // c1.getArrayBox().set(k, c1.getArrayBox().get(minDistIndex));  // TO-DO /maybe (create an arraylist and assing)
-              //  c1.getPairList().set(k, c1.getPairList().get(minDistIndex));
-
-t1.set(minDistIndex+k, temp1);
-t2.set(minDistIndex+k, temp2);
-
-               // c1.getArrayBox().set(minDistIndex, temp1);
-               // c1.getPairList().set(minDistIndex, temp2);
-
-                c1.setPairList(t2);
-                c1.setArrayBox(t1);
+            //sorting array of distances without actually sorting it; we are just using the indices here
+            for (int j=0; j<lengthArrBox;j++){
+                int minIndex = maxmind("min", arrayDistTempCopy);
+                arrayDistTempCopy.set(minIndex, compa );
+                indexArrayList.add(minIndex);
             }
 
-                firstPos = c1.getPairList().get(0);
-                c1.setArrayDist(queue);
-
-                for (i = 0; i < c1.getPairList().size(); i++) {
-                 //   if (i>0) {
-                       // if ((c1.getArrayBox().get(i - 1)) - c1.getContentTruck() > 0) {
-                            firstPos = calculation(c1, firstPos);
-                       // }
-                  //  }
+            //here we are considering the case where distances are similar then check latitude then check longitude
+            for (int d=0; d<lengthArrBox; d++){
+                Double compar= arrayDistTemp.get(d);
+                for (int e=d+1; e<lengthArrBox;e++){
+                    if (compar ==  arrayDistTemp.get(e)){
+                        if (fileManip.getArrayCoord().get(d).getLatitude() == fileManip.getArrayCoord().get(e).getLatitude()){
+                            if (fileManip.getArrayCoord().get(d).getLongitude() > fileManip.getArrayCoord().get(e).getLongitude()){
+                                int temp = indexArrayList.get(e);
+                                indexArrayList.set(e,indexArrayList.get(d));
+                                indexArrayList.set(d,temp);
+                            }
+                        }else if (fileManip.getArrayCoord().get(d).getLatitude() > fileManip.getArrayCoord().get(e).getLatitude()){
+                            int temp = indexArrayList.get(e);
+                            indexArrayList.set(e,indexArrayList.get(d));
+                            indexArrayList.set(d,temp);
+                        }
+                    }
                 }
-
-
-            } else if (c1.getArrayBox().get(maxBoxIndex) >= c1.getContentTruck()) {
-                System.out.println("Distance:0" + "\t" + "Number of boxes:" + ((c1.getArrayBox().get(maxBoxIndex))-c1.getContentTruck()) + "\t" + "Position:" + "(" + positions.get(maxBoxIndex).getLatitude() + "," + positions.get(maxBoxIndex).getLongitude() + ")" );
             }
+
+            //populating the queues based on the indices we saved of sorted array of distances
+            for (int k = 0; k < lengthArrBox; k++) {
+
+                int index =  indexArrayList.get(k);
+
+                queue.add(arrayDistTemp.get(index));
+
+                queueBox.add(fileManip.getArrayBox().get(index));
+
+                queueCoord.add(fileManip.getArrayCoord().get(index));
+            }
+            truck.setqueueDist(queue);
+            truck.setqueueBox(queueBox);
+            truck.setqueueCoord(queueCoord);
+
+            int sizequeue= truck.getQueueCoord().size();
+
+            // here we are doing the operation of adding boxes to the truck and doing it
+            // while truck is not yet filled and there are still boxes available at the warehouses
+            for (i = 0; i < sizequeue; i++) {
+                if (truck.getContentTruck() > 0 && truck.getqueueBox().isEmpty()==false) {
+                    positions = calculation(fileManip, args[1], truck , positions);
+                }
+            }
+
+
+        } else if (fileManip.getArrayBox().get(maxBoxIndex) >= truck.getContentTruck()) {
+            // truck is already filled with boxes found at first warehouse
+            outputstr = "Distance:0\t" + "\t" + "Number of boxes:\t" + ((fileManip.getArrayBox().get(maxBoxIndex)) - truck.getContentTruck()) + "\t" + "Position:" + "(" + positions.getLatitude() + "," + positions.getLatitude() + ")\n";
+            fileManip.writeFile(args[1],outputstr);
+            System.out.println(outputstr);
+        }
 
     }
 
+    //using Haversine formula t calculate distances between 2 points
+    // (we decompose it for easier understanding even though not necessary)
     public static double calculeDistance(Coordinates posInit, Coordinates entrepot) {
 
         double latitudePos = Math.toRadians(posInit.getLatitude());
@@ -173,57 +205,49 @@ t2.set(minDistIndex+k, temp2);
 
         double rootsincarre1ajoutcossincarre2=Math.sqrt(sincarre1ajoutcossincarre2);
         double distance= 2 * 6371000 * Math.asin(rootsincarre1ajoutcossincarre2);
-
-
-       /*// double distance = (2*6371000)*Math.asin((Math.sqrt(Math.pow((latitudeEntrepot-latitudePos)/2,2)+
-        //        Math.cos(latitudePos)*Math.cos(latitudeEntrepot)*(Math.pow(Math.sin(((longitudeEntrepot-longitudePos)/2)),2))
-    )));*/
-
         double scale = Math.pow(10,1);
         return Math.round(distance*scale)/scale;
     }
 
-
-    public static int maxmin(String what, ArrayList<Integer> tab){
+    //maxBox here is used to to return index of maximum of boxes
+    public static int maxBox(ArrayList<Integer> tab){
 
         int comp=tab.get(0);
         int ind=0;
-       // type returnVal = tab.get(0);
+
         for (int i=1; i<tab.size(); i++){
 
-              if (what=="max"){
-                  if (comp<tab.get(i)){
-                      comp=tab.get(i);
-                      ind=i;
-                  }
-            }else if (what=="min"){
-
-                  if (comp>tab.get(i)){
-                      comp=tab.get(i);
-                      ind=i;
-                  }
-
+            if (comp<tab.get(i)){
+                comp=tab.get(i);
+                ind=i;
             }
 
         }
+
+
 
         return ind;
 
     }
 
-    public static int maxmind(String what, ArrayList<Double> tab){
+    // maxmind is used to calculate either max or min element of an array of type Double
+    // it returns the index of the selected element (max/min)
+    public static int maxmind(String maxOrMin, ArrayList<Double> tab){
 
         double comp=tab.get(0);
         int ind=0;
-        // type returnVal = tab.get(0);
+
         for (int i=1; i<tab.size(); i++){
 
-            if (what=="max"){
+            if (maxOrMin=="max"){
                 if (comp<tab.get(i)){
-                    comp=tab.get(i);
-                    ind=i;
+
+
+                    comp = tab.get(i);
+                    ind = i;
+
                 }
-            }else if (what=="min"){
+            }else if (maxOrMin=="min"){
 
                 if (comp>tab.get(i)){
                     comp=tab.get(i);
@@ -238,45 +262,38 @@ t2.set(minDistIndex+k, temp2);
 
     }
 
-public static Coordinates calculation(GestionCamion ob, Coordinates firstPos ){
+    //calculation is used to fill the truck with boxes and empty the warehouses
+    public static Coordinates calculation(ManipulationFichier fileManip, String namefile, GestionCamion ob, Coordinates positions ){
 
         int minDistIndex=0;
 
+        // we will now be done with that warehouse so we remove its data from the queues
+
+        double minDist=ob.getQueueDist().remove();
+
+        int box= ob.getqueueBox().remove();
+
+        Coordinates pos = ob.getQueueCoord().remove();
 
 
+        while (ob.getContentTruck() >0 && box > 0) {
+            ob.setContentTruck((ob.getContentTruck() - 1));
+            box=box-1;
+        }
 
-            double minDist=ob.getArrayDist().remove();
-            
-            int box= ob.getArrayBox().get(0);
-            
-            Coordinates pos = ob.getPairList().get(0);
+        String outputstr="Distance:"+ minDist + "\t\t" + "Number of boxes:" + box + "\t\t" + "Position:" + "(" + pos.getLatitude() + "," + pos.getLongitude() + ")";
+        fileManip.writeFile(namefile,outputstr);
+        System.out.println("Distance:" + minDist + "\t\t" + "Number of boxes:" + box + "\t\t" + "Position:" + "(" + pos.getLatitude() +"," + pos.getLongitude() + ")");
 
-
-                while (ob.getContentTruck() >0 && ob.getArrayBox().get(0) > 0){
-                    ob.setContentTruck((ob.getContentTruck()-1));
-                    ob.getArrayBox().set(0, ob.getArrayBox().get(0)-1);
-
-                }
+        //this is the next warehouse to visit
+        positions = pos;
 
 
-                System.out.println("Distance:" + minDist + "\t" + "Number of boxes:" + ob.getArrayBox().get(0) + "\t" + "Position:" + "(" + ob.getPairList().get(0).getLatitude() +"," + ob.getPairList().get(0).getLongitude() + ")");
-
-
-
-
-        firstPos = ob.getPairList().get(0);
-
-        if (ob.getArrayBox().size() > 0){
-        ob.getArrayBox().remove(0);}
-
-        if (ob.getPairList().size() > 0){
-        ob.getPairList().remove(0);}
-
-        return firstPos;
-}
-
+        return positions;
     }
 
+
+}
 
 
 
